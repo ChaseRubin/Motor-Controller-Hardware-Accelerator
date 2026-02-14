@@ -1,0 +1,65 @@
+wire: connecting two points
+reg: used for storing values
+
+
+case(address)
+    0 : soemthing a
+    1 : ...
+    3 : ...
+    default : ...
+endcase
+
+while: used almost exclusivly in test benches
+
+while(free_time) begin
+    ...
+end
+
+always @ (posedge clk or posedge rst) //
+...
+end
+
+for (i = 0; i < 16; i = i + 1)begin
+    ...
+end
+
+
+repeat(16)being       //repeats 16 times
+...
+end
+
+
+initial begin       //used in testbenches to set preliminary condictions
+    clk = 0;
+    ...
+end
+
+//always cant drive wire data type
+
+always (a or b or sel)
+begin
+    y = 0;
+    if (sel == 0) begin
+        y = a;
+    end else begin
+        y = b;
+    end
+end
+
+"=" executes sequentially, "<=" executes in paralell
+
+always begin                //generates a clock signal
+#5 clk =~ clkl;
+end
+
+assign: only used for combinational
+
+assign out = (enable) ? data 1'bz; //if enable high, data is driven, else, high impedance --> tri state buffer
+assign out = data; //this is just a buffer
+
+real a; used to store 64 bit exponential, shortreal is for 32 bits
+a = 2.1E-2 ---> 2.000000e+05
+
+time literal: time a; used to denine time variables 
+
+string literals: string a; 

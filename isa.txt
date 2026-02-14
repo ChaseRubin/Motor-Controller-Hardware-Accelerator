@@ -1,0 +1,88 @@
+R-type:
+opcode: tell you what instruction type is being used
+funct3: this tells the ALU which operation to perform
+funct7: disabmiguates operations that share the same opcode and funct3
+
+      |funct7 |rs2  |rs1  |funct3|rd   |opcode |
+add   |0000000|xxxxx|xxxxx|000   |xxxxx|0110011| done
+sub   |0100000|xxxxx|xxxxx|000   |xxxxx|0110011| done
+sll   |0000000|xxxxx|xxxxx|001   |xxxxx|0110011| done
+slt   |0000000|xxxxx|xxxxx|010   |xxxxx|0110011| done
+sltu  |0000000|xxxxx|xxxxx|011   |xxxxx|0110011| done
+xor   |0000000|xxxxx|xxxxx|100   |xxxxx|0110011| done
+srl   |0000000|xxxxx|xxxxx|101   |xxxxx|0110011| done
+sra   |0100000|xxxxx|xxxxx|101   |xxxxx|0110011| done
+or    |0000000|xxxxx|xxxxx|110   |xxxxx|0110011| done
+and   |0000000|xxxxx|xxxxx|111   |xxxxx|0110011| done
+
+I-type:
+      |imm 11:0     |rs1  |funct3|rd   |opcode  |
+// Integer immediate ALU (opcode = 0010011)
+
+addi  |xxxxxxxxxxxx |xxxxx|000   |xxxxx|0010011| done
+slti  |xxxxxxxxxxxx |xxxxx|010   |xxxxx|0010011| If rs1 is less than the sign-extended immediate, the destination register (rd) is set to 1;
+sltiu |xxxxxxxxxxxx |xxxxx|011   |xxxxx|0010011| done    slti unsigned
+xori  |xxxxxxxxxxxx |xxxxx|100   |xxxxx|0010011| done
+ori   |xxxxxxxxxxxx |xxxxx|110   |xxxxx|0010011| done
+andi  |xxxxxxxxxxxx |xxxxx|111   |xxxxx|0010011| done
+
+// Shift-immediate (still opcode = 0010011; imm[11:5]=funct7, imm[4:0]=shamt)
+slli  |0000000xxxxx |xxxxx|001   |xxxxx|0010011| done
+srli  |0000000xxxxx |xxxxx|101   |xxxxx|0010011| done
+srai  |0100000xxxxx |xxxxx|101   |xxxxx|0010011| done 19
+
+// Loads (opcode = 0000011)
+lb    |xxxxxxxxxxxx |xxxxx|000   |xxxxx|0000011|
+lh    |xxxxxxxxxxxx |xxxxx|001   |xxxxx|0000011|
+lw    |xxxxxxxxxxxx |xxxxx|010   |xxxxx|0000011|
+lbu   |xxxxxxxxxxxx |xxxxx|100   |xxxxx|0000011|
+lhu   |xxxxxxxxxxxx |xxxxx|101   |xxxxx|0000011|
+
+// JALR (opcode = 1100111)
+jalr  |xxxxxxxxxxxx |xxxxx|000   |xxxxx|1100111|
+
+// FENCE (opcode = 0001111)
+fence |xxxxxxxxxxxx |xxxxx|000   |xxxxx|0001111|
+fence.i|xxxxxxxxxxxx|xxxxx|001   |xxxxx|0001111|
+
+// SYSTEM (opcode = 1110011)  (these have fixed rd=rs1=0)
+ecall |000000000000 |00000|000   |00000|1110011|
+ebreak|000000000001 |00000|000   |00000|1110011|
+
+S-type (stores):
+      |imm 11:5 |rs2  |rs1  |funct3|imm 4:0|opcode |
+sb    |xxxxxxx  |xxxxx|xxxxx|000   |xxxxx  |0100011|
+sh    |xxxxxxx  |xxxxx|xxxxx|001   |xxxxx  |0100011|
+sw    |xxxxxxx  |xxxxx|xxxxx|010   |xxxxx  |0100011| //32
+
+B-type (branches):
+      |imm 12|imm 10:5|rs2  |rs1  |funct3|imm 4:1|imm 11|opcode |
+beq   |x     |xxxxxx  |xxxxx|xxxxx|000   |xxxx   |x     |1100011|
+bne   |x     |xxxxxx  |xxxxx|xxxxx|001   |xxxx   |x     |1100011|
+blt   |x     |xxxxxx  |xxxxx|xxxxx|100   |xxxx   |x     |1100011|
+bge   |x     |xxxxxx  |xxxxx|xxxxx|101   |xxxx   |x     |1100011|
+bltu  |x     |xxxxxx  |xxxxx|xxxxx|110   |xxxx   |x     |1100011|
+bgeu  |x     |xxxxxx  |xxxxx|xxxxx|111   |xxxx   |x     |1100011| //38
+
+J-type (jump):
+      |imm 20|imm 10:1|imm 11|imm 19:12|rd   |opcode |
+jal   |x     |xxxxxxxx|x     |xxxxxxxx |xxxxx|1101111| //39
+
+U-type:
+      |imm 31:12               |rd   |opcode |
+lui   |xxxxxxxxxxxxxxxxxxxx    |xxxxx|0110111|
+auipc |xxxxxxxxxxxxxxxxxxxx    |xxxxx|0010111| //41
+
+CSR (SYSTEM, opcode = 1110011):
+      |csr 11:0     |rs1  |funct3|rd   |opcode |
+csrrw |xxxxxxxxxxxx |xxxxx|001   |xxxxx|1110011|
+csrrs |xxxxxxxxxxxx |xxxxx|010   |xxxxx|1110011|
+csrrc |xxxxxxxxxxxx |xxxxx|011   |xxxxx|1110011|
+
+      |csr 11:0     |zimm |funct3|rd   |opcode |
+csrrwi|xxxxxxxxxxxx |xxxxx|101   |xxxxx|1110011|
+csrrsi|xxxxxxxxxxxx |xxxxx|110   |xxxxx|1110011|
+csrrci|xxxxxxxxxxxx |xxxxx|111   |xxxxx|1110011|
+
+
+
