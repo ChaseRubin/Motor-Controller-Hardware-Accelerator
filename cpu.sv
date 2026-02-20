@@ -2,7 +2,8 @@
 
 module cpu (
     input clk,
-    input reset
+    input reset,
+    output reg halt
 );
 
 //control signals
@@ -17,23 +18,11 @@ wire [31:0] instr;
 wire [31:0] rd1, rd2;
 wire [31:0] alu_out;
 
-//memory controls 
-reg mem_read;
-reg mem_to_reg;
-wire [31:0] mem_data;
-wire [31:0] address;
-assign address = alu_out;
-wire [7:0] selected_byte;
+reg [1:0] pc_sel;
 
-assign selected_byte =
-    (address[1:0] == 2'b00) ? mem_data[7:0]   :
-    (address[1:0] == 2'b01) ? mem_data[15:8]  :
-    (address[1:0] == 2'b10) ? mem_data[23:16] :
-                              mem_data[31:24];
-
-wire [31:0] lb_data = {{24{selected_byte[7]}}, selected_byte};
-wire [31:0] write_data;
-assign write_data = (mem_to_reg) ? lb_data : alu_out;
+wire [31:0] jalr_target = {alu_out[31:1], 1'b0};
+wire [31:0] jal_target = pc_val + imm_j;
+wire [31:0] imm_j = {{12{instr[31]}}, instr[19:12], instr[20], instr[30:21], 1'b0};
 
 
 //decode wires
@@ -46,14 +35,75 @@ wire [4:0] rd  = instr[11:7];
 
 wire [31:0] alu_input_b;
 
-//decode for I-type
+//memory controls 
+reg mem_read;
+reg [1:0] mem_to_reg;
+wire [31:0] mem_data;
+wire [31:0] address;
+assign address = alu_out;
+wire [7:0] selected_byte;
+wire [15:0] selected_half;
+wire [31:0] reg_to_mem;
+wire [3:0] mem_byte_en;
+wire [31:0] mem_write_data;
+
+// Generate  4 bit mask based on address and instruction typ
+assign mem_byte_en = (opcode == 7'b0100011 && funct3 == 3'b000) ? 
+                     (4'b0001 << address[1:0]) : 4'b0000;
+
+assign mem_write_data = rs2 << (8 * address[1:0]);
+
+assign selected_byte =
+    (address[1:0] == 2'b00) ? mem_data[7:0]   :
+    (address[1:0] == 2'b01) ? mem_data[15:8]  :
+    (address[1:0] == 2'b10) ? mem_data[23:16] :
+                              mem_data[31:24];
+
+assign selected_half = 
+    (address[1] == 1'b0) ? mem_data[15:0] : // Lower half (Addresses ending in 00 or 01)
+                           mem_data[31:16]; // Upper half (Addresses ending in 10 or 11)
+
+//types of loads
+wire [31:0] lb_data = {{24{selected_byte[7]}}, selected_byte}; //byte
+wire [31:0] lh_data = {{16{selected_half[15]}}, selected_half}; //half word
+wire [31:0] w_data = mem_data; 
+wire [31:0] lbu_data = {24'b0, selected_byte}; //load byte unsigned
+wire [31:0] lhu_data = {16'b0, selected_half}; //loads half unsigned
+
+wire [31:0] write_data;
+logic [31:0] load_data;
+
+//logic to chose alu_out data or the usual alu_output to send to register
+
+// Continuous assignments (outside the always block)
+assign load_data = (funct3 == 3'b000) ? lb_data : 
+                   (funct3 == 3'b001) ? lh_data : 
+                   (funct3 == 3'b010) ? w_data :
+                   (funct3 == 3'b100) ? lbu_data:
+                   (funct3 == 3'b101) ? lhu_data:
+                                        mem_data;
+
+// 00: ALU, 01: Memory, 10: PC+4
+assign write_data = (mem_to_reg == 2'b00) ? alu_out :
+                    (mem_to_reg == 2'b01) ? load_data :
+                    (mem_to_reg == 2'b10) ? (pc_val + 4) :
+                                            alu_out;
+
+//decode for I-type and B-type
 wire [31:0] imm_ext = {{20{instr[31]}}, instr[31:20]}; //concadonates the signed bit to fit the 32 bit alu
+wire [31:0] imm_s = {{20{instr[31]}}, instr[31:25], instr[11:7]};
+
 
 reg alu_src;
 
-assign pc_next = pc_val + 32'd4; //pc inc
+assign pc_next = (pc_sel == 2'b01) ? jal_target : //JAR
+                 (pc_sel == 2'b10) ? jalr_target : //JARL
+                                     pc_val + 4; //normal pc increment
 
-assign alu_input_b = (alu_src) ? imm_ext : rd2; //need to fix
+
+assign alu_input_b = (opcode == 7'b0100011) ? imm_s : 
+                     (alu_src) ? imm_ext : rd2;
+
 
 pc PC (
     .clk(clk),
@@ -86,10 +136,12 @@ alu ALU (
 );
 
 dmem memory(
+    .clk(clk),
     .address(address),
     .mem_read(mem_read),
-    .data(mem_data)
-
+    .data(mem_data),
+    .byte_en(mem_byte_en),
+    .write_data(mem_write_data)
 );
 
 always @(*) begin
@@ -99,6 +151,10 @@ always @(*) begin
     alu_src = 1'b0;
     mem_read  = 0;
     mem_to_reg = 0;
+
+    pc_sel     = 2'b00; //pc selected to normal
+    halt = 0;
+
 
     case (opcode)
 
@@ -126,8 +182,6 @@ always @(*) begin
             reg_write = 1'b1;
             alu_src = 1;
 
-            
-
             case ({instr[30], funct3})
                 4'b0000: alu_op = 4'b0000; //addi
                 4'b0010: alu_op = 4'b0011; //slti
@@ -142,19 +196,55 @@ always @(*) begin
             endcase
         end
             
-        7'b0000011: begin
+        7'b0000011: begin //load instructions
             reg_write = 1'b1;
             alu_src = 1'b1;
             mem_read  = 1;   // read memory
-            mem_to_reg = 1;  // write memory data back
+            mem_to_reg = 2'b01;  // write memory data back
+            alu_op = 4'b0000;
+        end
 
+        7'b1100111: begin //JARL command
+        if (funct3 == 3'b000) begin
+            reg_write = 1'b1;
+            alu_src = 1'b1;
+            alu_op = 4'b0000;
+            mem_read = 0;
+            pc_sel = 2'b10; //selects JARL target for the next pc
+            mem_to_reg = 2'b10; //2'b10 selects PC+4
+        end
+        end
 
-            case (funct3)
-                3'b000: alu_op =  4'b0000; //single bite load
-                //3'b001: //left off here 
-                //3'b010:
-                //3'b100:
-                //3'b101:
+        //fence instructions (both FENCE and FENCE.i are convered in this instruction)
+        7'b0001111: begin
+            mem_read  = 0;
+            mem_to_reg = 0;
+        end
+
+        //ecall and ebreak
+        7'b1110011: begin
+        halt = 1;
+        if (instr[20] == 1'b1) begin
+                $display("BREAKPOINT: EBREAK executed at PC=0x%h", pc_val);
+            end else begin
+                $display("SYSTEM CALL: ECALL executed at PC=0x%h", pc_val);
+            end
+
+        end
+
+        //B-type
+        7'b0100011: begin
+        alu_src = 1;      // imm for address calculation
+        reg_write = 0;
+        mem_read = 0;
+
+            case(funct3)
+            
+            //sb
+            3'b000: begin
+            alu_op = 4'b0000;
+            
+            end
 
             endcase
 
@@ -166,7 +256,5 @@ always @(*) begin
 
     endcase
 end
-
-
 
 endmodule

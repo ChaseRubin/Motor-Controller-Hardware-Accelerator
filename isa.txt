@@ -32,26 +32,26 @@ srli  |0000000xxxxx |xxxxx|101   |xxxxx|0010011| done
 srai  |0100000xxxxx |xxxxx|101   |xxxxx|0010011| done 19
 
 // Loads (opcode = 0000011)
-lb    |xxxxxxxxxxxx |xxxxx|000   |xxxxx|0000011|
-lh    |xxxxxxxxxxxx |xxxxx|001   |xxxxx|0000011|
-lw    |xxxxxxxxxxxx |xxxxx|010   |xxxxx|0000011|
-lbu   |xxxxxxxxxxxx |xxxxx|100   |xxxxx|0000011|
-lhu   |xxxxxxxxxxxx |xxxxx|101   |xxxxx|0000011|
+lb    |xxxxxxxxxxxx |xxxxx|000   |xxxxx|0000011| done
+lh    |xxxxxxxxxxxx |xxxxx|001   |xxxxx|0000011| done
+lw    |xxxxxxxxxxxx |xxxxx|010   |xxxxx|0000011| done
+lbu   |xxxxxxxxxxxx |xxxxx|100   |xxxxx|0000011| done
+lhu   |xxxxxxxxxxxx |xxxxx|101   |xxxxx|0000011| done 24
 
 // JALR (opcode = 1100111)
-jalr  |xxxxxxxxxxxx |xxxxx|000   |xxxxx|1100111|
+jalr  |xxxxxxxxxxxx |xxxxx|000   |xxxxx|1100111| done
 
 // FENCE (opcode = 0001111)
-fence |xxxxxxxxxxxx |xxxxx|000   |xxxxx|0001111|
-fence.i|xxxxxxxxxxxx|xxxxx|001   |xxxxx|0001111|
+fence |xxxxxxxxxxxx |xxxxx|000   |xxxxx|0001111| done
+fence.i|xxxxxxxxxxxx|xxxxx|001   |xxxxx|0001111| done 27
 
 // SYSTEM (opcode = 1110011)  (these have fixed rd=rs1=0)
-ecall |000000000000 |00000|000   |00000|1110011|
-ebreak|000000000001 |00000|000   |00000|1110011|
+ecall |000000000000 |00000|000   |00000|1110011| done
+ebreak|000000000001 |00000|000   |00000|1110011| done
 
 S-type (stores):
       |imm 11:5 |rs2  |rs1  |funct3|imm 4:0|opcode |
-sb    |xxxxxxx  |xxxxx|xxxxx|000   |xxxxx  |0100011|
+sb    |xxxxxxx  |xxxxx|xxxxx|000   |xxxxx  |0100011| 
 sh    |xxxxxxx  |xxxxx|xxxxx|001   |xxxxx  |0100011|
 sw    |xxxxxxx  |xxxxx|xxxxx|010   |xxxxx  |0100011| //32
 
