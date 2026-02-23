@@ -63,3 +63,13 @@ a = 2.1E-2 ---> 2.000000e+05
 time literal: time a; used to denine time variables 
 
 string literals: string a; 
+
+
+
+
+
+store bit:
+imm_s = alu_src
+reg_write = 0
+mem_read = 0
+alu operation set to add

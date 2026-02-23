@@ -17,56 +17,40 @@ always #5 clk = ~clk;   // 10 ns period
 
 always @(posedge clk) begin
     if (halt) $finish;
-    $display(
-        "t=%0t | PC=%0d | x1=%0d | x5=%0d | x6=%0d | x7=%0d",
-        $time,
-        DUT.pc_val,
-        DUT.RF.regs[1],   // return address register
-        DUT.RF.regs[5],   // jump target base
-        DUT.RF.regs[6],   // function body result
-        DUT.RF.regs[7]    // post-return result
-    );
+    
 end
 
 initial begin
     clk   = 0;
     reset = 1;
 
+    // 1. Set base address x5 = 16 
+    DUT.IMEM.mem[0] = 32'h01000293; 
+    
+    // 2. Set data x6 = 0xABCD
+    DUT.IMEM.mem[1] = 32'habc00313;
 
-    // PC=0   -> x5 = 16
-    DUT.IMEM.mem[0] = 32'h01000293; // addi x5,x0,16
-
-    // PC=4   -> call function @16, save return addr in x1 (=8)
-    DUT.IMEM.mem[1] = 32'h000280E7; // jalr x1,0(x5)
-
-    // PC=8   -> should execute AFTER return
-    DUT.IMEM.mem[2] = 32'h06300393; // addi x7,x0,99
-
-    // PC=12  -> infinite loop to stop runaway PC
-    DUT.IMEM.mem[3] = 32'b00000000000100000000000001110011; // jalr x0,0(x0)
-
-    // PC=16  -> "function body"
-    DUT.IMEM.mem[4] = 32'h02A00313; // addi x6,x0,42
-
-    // PC=20  -> return to x1 (=8)
-    DUT.IMEM.mem[5] = 32'h00008067; // jalr x0,0(x1)
-
-    DUT.RF.regs[1] = 0;
-    DUT.RF.regs[5] = 0;
-    DUT.RF.regs[6] = 0;
-    DUT.RF.regs[7] = 0;
+    // 3. sh x6, 0(x5)
+    DUT.IMEM.mem[2] = 32'h00629023;
 
     #12;
     reset = 0;
 
+    #100;
+
+    $display("\nFINAL MEMORY CHECK (Halfword Store):");
+    $display("Memory Word [4] (Address 16-19) = %h", DUT.memory.mem[4]);
     
-    #200;
-    $display("\nFINAL STATE:");
-    $display("x1 (return addr) = %0d (expect 8)", DUT.RF.regs[1]);
-    $display("x6 (function val) = %0d (expect 42)", DUT.RF.regs[6]);
-    $display("x7 (after return) = %0d (expect 99)", DUT.RF.regs[7]);
+    // We expect the lower two bytes of Word 4 to be ABCD
+    if (DUT.memory.mem[4][15:0] === 16'hABCD) begin
+        $display("SUCCESS: sh stored 0xABCD at address 16");
+    end else begin
+        $display("FAILURE: Expected ABCD in bits [15:0], got %h", DUT.memory.mem[4][15:0]);
+    end
 
     $finish;
 end
+
+
 
 endmodule

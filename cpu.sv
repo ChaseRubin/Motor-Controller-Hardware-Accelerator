@@ -48,10 +48,14 @@ wire [3:0] mem_byte_en;
 wire [31:0] mem_write_data;
 
 // Generate  4 bit mask based on address and instruction typ
-assign mem_byte_en = (opcode == 7'b0100011 && funct3 == 3'b000) ? 
-                     (4'b0001 << address[1:0]) : 4'b0000;
+assign mem_byte_en = (opcode == 7'b0100011) ? (
+                        (funct3 == 3'b000) ? (4'b0001 << address[1:0]) : // sb
+                        (funct3 == 3'b001) ? (4'b0011 << address[1:0]) : // sh
+                        (funct3 == 3'b010) ? (4'b1111)                  : // sw
+                                              4'b0000
+                     ) : 4'b0000;
 
-assign mem_write_data = rs2 << (8 * address[1:0]);
+assign mem_write_data = rd2 << (8 * address[1:0]);
 
 assign selected_byte =
     (address[1:0] == 2'b00) ? mem_data[7:0]   :
@@ -235,7 +239,7 @@ always @(*) begin
         //B-type
         7'b0100011: begin
         alu_src = 1;      // imm for address calculation
-        reg_write = 0;
+        reg_write = 0; //
         mem_read = 0;
 
             case(funct3)
@@ -243,8 +247,19 @@ always @(*) begin
             //sb
             3'b000: begin
             alu_op = 4'b0000;
-            
+        
             end
+
+            //sh
+            3'b001: begin
+            alu_op = 4'b0000;
+            end
+
+            3'b010: begin
+
+             end
+
+            
 
             endcase
 

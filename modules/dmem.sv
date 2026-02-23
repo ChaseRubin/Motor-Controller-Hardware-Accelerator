@@ -14,7 +14,7 @@ module dmem(
     assign data = (mem_read) ? mem[address[11:2]] : 32'b0;
 
     
-    always @(posedge clk) begin
+    always @(negedge clk) begin
         //occurs if at least one byte_en bit is high
         if (byte_en[0]) mem[address[11:2]][7:0]   <= write_data[7:0];
         if (byte_en[1]) mem[address[11:2]][15:8]  <= write_data[15:8];
@@ -23,7 +23,17 @@ module dmem(
     end
 
     initial begin
-        $readmemh("dmem.hex", mem);
+    // First, zero out the whole memory
+    for (integer i = 0; i < 1024; i = i + 1) begin
+        mem[i] = 32'h0;
     end
+    // Then load your file if it exists
+    $readmemh("dmem.hex", mem);
+
+    $display("ALU_A: %h | ALU_B: %h | ALU_OUT: %h | ByteEn: %b", 
+          DUT.ALU.a, DUT.ALU.b, DUT.alu_out, DUT.mem_byte_en);
+end
+
+
 
 endmodule
