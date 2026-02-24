@@ -18,11 +18,21 @@ wire [31:0] instr;
 wire [31:0] rd1, rd2;
 wire [31:0] alu_out;
 
-reg [1:0] pc_sel;
+reg [3:0] pc_sel;
 
 wire [31:0] jalr_target = {alu_out[31:1], 1'b0};
 wire [31:0] jal_target = pc_val + imm_j;
 wire [31:0] imm_j = {{12{instr[31]}}, instr[19:12], instr[20], instr[30:21], 1'b0};
+
+//control signals for branch instructions
+wire zero_flag;
+wire [31:0] branch_target = pc_val + imm_b ;
+
+
+
+wire [31:0] imm_b = { {19{instr[31]}}, instr[31], instr[7], instr[30:25], instr[11:8], 1'b0 };
+//immediate bits from b-type instructions
+assign zero_flag = (alu_out == 32'h00000000) ? 1 : 0; 
 
 
 //decode wires
@@ -100,8 +110,9 @@ wire [31:0] imm_s = {{20{instr[31]}}, instr[31:25], instr[11:7]};
 
 reg alu_src;
 
-assign pc_next = (pc_sel == 2'b01) ? jal_target : //JAR
-                 (pc_sel == 2'b10) ? jalr_target : //JARL
+assign pc_next = (pc_sel == 4'b0011) ? branch_target : //branches
+                 (pc_sel == 4'b0001) ? jal_target : //JAR
+                 (pc_sel == 4'b0010) ? jalr_target : //JARL
                                      pc_val + 4; //normal pc increment
 
 
@@ -155,8 +166,7 @@ always @(*) begin
     alu_src = 1'b0;
     mem_read  = 0;
     mem_to_reg = 0;
-
-    pc_sel     = 2'b00; //pc selected to normal
+    pc_sel = 4'b0000;
     halt = 0;
 
 
@@ -214,7 +224,7 @@ always @(*) begin
             alu_src = 1'b1;
             alu_op = 4'b0000;
             mem_read = 0;
-            pc_sel = 2'b10; //selects JARL target for the next pc
+            pc_sel = 4'b0010; //selects JARL target for the next pc
             mem_to_reg = 2'b10; //2'b10 selects PC+4
         end
         end
@@ -236,7 +246,7 @@ always @(*) begin
 
         end
 
-        //B-type
+        //S-type (stores)
         7'b0100011: begin
         alu_src = 1;      // imm for address calculation
         reg_write = 0; //
@@ -256,15 +266,22 @@ always @(*) begin
             end
 
             3'b010: begin
+            alu_op = 4'b0000;
 
              end
-
-            
 
             endcase
 
         end
 
+        7'b1100011: begin
+    case(funct3)
+        3'b000: pc_sel = (rd1 == rd2) ? 4'b0011 : 4'b0000; // BEQ
+        3'b001: pc_sel = (rd1 != rd2) ? 4'b0011 : 4'b0000; // BNE
+        3'b100: pc_sel = ($signed(rd1) < $signed(rd2)) ? 4'b0011 : 4'b0000;
+        default: pc_sel = 4'b0000;
+    endcase
+end
         default: begin
             // keep default values
         end
